@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { Switch, Route, BrowserRouter } from 'react-router-dom';
+import { Switch, Route, HashRouter } from 'react-router-dom';
 import MarketPlacePage from './pages/marketplace';
 import AdminPage from './pages/admin';
 import { ethers, Contract, providers, utils, Interface } from 'ethers';
@@ -46,7 +46,7 @@ class App extends Component {
     const { contractInstance, wallet } = this.state;
     return (
       <div className="App">
-        <BrowserRouter>
+        <HashRouter>
           <Switch>
             <Route
               exact
@@ -65,7 +65,7 @@ class App extends Component {
               )}
             />
           </Switch>
-        </BrowserRouter>
+        </HashRouter>
       </div>
     );
   }
