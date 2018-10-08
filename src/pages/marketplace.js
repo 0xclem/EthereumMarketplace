@@ -1,6 +1,6 @@
 import React, { Component, Fragment } from 'react';
-import { ethers, Contract, providers, utils, Interface } from 'ethers';
-import abi from '../lib/abi';
+import { ethers } from 'ethers';
+import PropTypes from 'prop-types';
 
 const SMART_CONTRACT_ADDR = '0xF9Cf83FdF7C4DEC13AEE0156db910B0dD1ae19D1';
 const DEFAULT_PROVIDER = ethers.getDefaultProvider('ropsten');
@@ -11,36 +11,22 @@ class MarketPlace extends Component {
   constructor() {
     super();
     this.state = {
-      isLoading: true,
-      contractInstance: null,
+      pictures: null,
       forSalePrices: {},
     };
     this.buyPicture = this.buyPicture.bind(this);
     this.sellPicture = this.sellPicture.bind(this);
     this.onInputChange = this.onInputChange.bind(this);
+    this.removePicture = this.removePicture.bind(this);
+    this.withdraw = this.withdraw.bind(this);
   }
 
   async componentDidMount() {
-    if (!window.web3 || !window.web3.currentProvider) return;
-    const web3Provider = new ethers.providers.Web3Provider(
-      window.web3.currentProvider
-    );
-    const signer = web3Provider.getSigner();
+    const { contractInstance } = this.props;
+    if (!contractInstance) return;
     try {
-      const contractInstance = await new Contract(
-        SMART_CONTRACT_ADDR,
-        abi,
-        signer
-      );
-      const wallet = await web3Provider.listAccounts();
       const pictures = await contractInstance.getPictureItems();
-      this.setState({
-        signer,
-        contractInstance,
-        wallet: wallet[0],
-        pictures,
-        isLoading: false,
-      });
+      this.setState({ pictures });
     } catch (err) {
       console.log(err);
     }
@@ -48,7 +34,6 @@ class MarketPlace extends Component {
 
   onInputChange(index) {
     const { forSalePrices } = this.state;
-    console.log('heeere', index);
     return e => {
       const price = e.target.value;
       const newPrices = Object.assign(forSalePrices, { [index]: price });
@@ -57,17 +42,14 @@ class MarketPlace extends Component {
   }
 
   buyPicture(index, price) {
-    const { contractInstance } = this.state;
+    const { contractInstance } = this.props;
     return async () => {
       try {
-        const buyPicture = await contractInstance.buyPictureItem(
-          index.toString(),
-          {
-            value: price,
-            gasLimit: GAZ_LIMIT,
-            gasPrice: GAZ_PRICE,
-          }
-        );
+        await contractInstance.buyPictureItem(index.toString(), {
+          value: price,
+          gasLimit: GAZ_LIMIT,
+          gasPrice: GAZ_PRICE,
+        });
       } catch (err) {
         console.log(err);
       }
@@ -75,10 +57,10 @@ class MarketPlace extends Component {
   }
 
   sellPicture(index, price) {
-    const { contractInstance } = this.state;
+    const { contractInstance } = this.props;
     return async () => {
       try {
-        const sellPicture = await contractInstance.putPictureItemUpForSale(
+        await contractInstance.putPictureItemUpForSale(
           index.toString(),
           price,
           {
@@ -92,20 +74,51 @@ class MarketPlace extends Component {
     };
   }
 
+  removePicture(index) {
+    const { contractInstance } = this.props;
+    return async () => {
+      try {
+        await contractInstance.removeFromMarket(index.toString(), {
+          gasLimit: GAZ_LIMIT,
+          gasPrice: GAZ_PRICE,
+        });
+      } catch (err) {
+        console.log(err);
+      }
+    };
+  }
+
+  async withdraw() {
+    const { contractInstance } = this.props;
+    try {
+      contractInstance.withdrawFunds({
+        gasLimit: GAZ_LIMIT,
+        gasPrice: GAZ_PRICE,
+      });
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
   renderActionButton(owner, forSale, price, index) {
-    const { wallet, forSalePrices } = this.state;
-    if (!forSale && wallet !== owner) return 'Not for sale.';
-    if (wallet === owner) {
+    const { forSalePrices } = this.state;
+    const { wallet } = this.props;
+    if (!forSale && wallet.address !== owner) return 'Not for sale.';
+    if (wallet.address === owner) {
       const sellPrice = forSalePrices[index];
       return (
         <div>
           <input
             type="number"
-            placeholder="Enter a price"
+            placeholder={forSale ? price : 'Enter a price...'}
             value={sellPrice}
             onChange={this.onInputChange(index)}
           />
           <button onClick={this.sellPicture(index, sellPrice)}>Sell</button>
+          <br />
+          {forSale ? (
+            <button onClick={this.removePicture(index)}>Remove</button>
+          ) : null}
         </div>
       );
     } else {
@@ -119,6 +132,7 @@ class MarketPlace extends Component {
 
   renderPictures() {
     const { pictures } = this.state;
+    if (!pictures) return null;
     const [owners, available, prices] = pictures;
     return owners.map((owner, index) => {
       const forSale = available[index];
@@ -141,21 +155,41 @@ class MarketPlace extends Component {
   renderMetamaskMessage() {
     return <div>Please install Metamask on your browser to continue.</div>;
   }
+
+  renderBalance() {
+    const { wallet } = this.props;
+    if (!wallet || !wallet.balance) return null;
+    return (
+      <div className="balance-wrapper">
+        {`Current balance: ${wallet.balance} wei`}
+        <button onClick={this.withdraw}>Withdraw</button>
+      </div>
+    );
+  }
+
   render() {
     if (!window.web3) return this.renderMetamaskMessage();
-    const { isLoading } = this.state;
+    const { contractInstance } = this.props;
     return (
       <div>
         <h1>Ethereum Market Place</h1>
         <h2>Buy pictures of Alexander now</h2>
-        {isLoading ? (
+        {!contractInstance ? (
           <div>Content loading...</div>
         ) : (
-          <div className="picture-layout">{this.renderPictures()}</div>
+          <div>
+            {this.renderBalance()}
+            <div className="picture-layout">{this.renderPictures()}</div>
+          </div>
         )}
       </div>
     );
   }
 }
+
+MarketPlace.propTypes = {
+  contractInstance: PropTypes.object,
+  wallet: PropTypes.object,
+};
 
 export default MarketPlace;

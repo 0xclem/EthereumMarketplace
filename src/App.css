@@ -25,3 +25,12 @@
 .picture-wrapper img {
   margin-bottom: 20px;
 }
+
+.balance-wrapper button {
+  margin-left: 20px;
+}
+
+.adminPanel table {
+  margin-top: 50px;
+  width: 100%;
+}
