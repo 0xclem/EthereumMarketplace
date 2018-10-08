@@ -2,8 +2,6 @@ import React, { Component, Fragment } from 'react';
 import { ethers } from 'ethers';
 import PropTypes from 'prop-types';
 
-const SMART_CONTRACT_ADDR = '0xF9Cf83FdF7C4DEC13AEE0156db910B0dD1ae19D1';
-const DEFAULT_PROVIDER = ethers.getDefaultProvider('ropsten');
 const GAZ_LIMIT = 100000;
 const GAZ_PRICE = 20000;
 
